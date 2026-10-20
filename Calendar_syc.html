@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
+<title>Календар дня</title>
+<style>
+  :root{
+    color-scheme: light dark;
+    --bg:#eef1f6; --card:#fff; --text:#141a24; --muted:#667085; --border:#e4e9f0; --soft:#f6f8fb;
+    --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 30px rgba(16,24,40,.07);
+    --green:#16a34a; --yellow:#eab308; --red:#ef4444;
+    --accent:#2563eb;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0e1218; --card:#161c26; --text:#e9eef6; --muted:#9aa6b8; --border:#26313f; --soft:#1b2330;
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 30px rgba(0,0,0,.4);
+      --accent:#60a5fa;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:8px 16px 48px}
+
+  .topbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 0 18px}
+  .brand h1{margin:0;font-size:20px;letter-spacing:-.2px}
+  .brand .sub{color:var(--muted);font-size:13px}
+  .topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .status{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);background:var(--card);border:1px solid var(--border);padding:6px 12px;border-radius:999px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+  .dot.ok{background:var(--green)}
+  .dot.connecting{background:var(--yellow)}
+  .dot.error{background:var(--red)}
+  .dot.local{background:#94a3b8}
+  .ghost{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;cursor:pointer}
+  .ghost:hover{border-color:var(--accent)}
+
+  .layout{display:grid;gap:16px;grid-template-columns:1fr}
+  @media (min-width:960px){
+    .layout{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:start}
+    .day-card{position:sticky;top:16px}
+  }
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+
+  .month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+  .month-nav h2{margin:0;font-size:17px;text-transform:capitalize;font-weight:650}
+  .nav-group{display:flex;gap:6px}
+  .navbtn{background:var(--soft);border:1px solid var(--border);min-width:34px;height:34px;border-radius:10px;cursor:pointer;line-height:1}
+  .navbtn:hover{border-color:var(--accent)}
+  .today-btn{width:auto;padding:0 14px;font-size:13px}
+
+  .weekdays,.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .weekdays div{text-align:center;font-size:12px;color:var(--muted);padding:2px 0 6px}
+  .day{position:relative;background:var(--soft);border:1px solid transparent;border-radius:12px;padding:6px;min-height:66px;display:flex;flex-direction:column;align-items:stretch;gap:5px;cursor:pointer;text-align:left}
+  .day:hover{border-color:var(--accent)}
+  .day.pad{opacity:.3}
+  .day.today .num{background:var(--accent);color:#fff}
+  .day.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .day .num{font-size:12px;font-weight:600;width:20px;height:20px;display:grid;place-items:center;border-radius:6px}
+  .mini-grid{display:flex;gap:3px;flex:1;width:100%}
+  .mini{display:flex;flex:1;min-width:0;border-radius:5px;overflow:hidden;background:var(--border);min-height:15px}
+  .mini span{flex:1}
+  .mini span.green{background:var(--green)}
+  .mini span.yellow{background:var(--yellow)}
+  .mini span.red{background:var(--red)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px;font-size:13px;color:var(--muted)}
+  .legend .item{display:flex;align-items:center;gap:6px}
+  .i{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
+  .i.green{background:var(--green)} .i.yellow{background:var(--yellow)} .i.red{background:var(--red)}
+  .legend .hint{margin-left:auto;font-size:12px}
+
+  .day-card h2{margin:0 0 2px;font-size:17px;text-transform:capitalize;font-weight:650}
+  .daysub{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .cells{display:flex;flex-direction:column;gap:10px}
+  .user-slot{display:flex;align-items:center;gap:10px;background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:12px}
+  .user-slot .name{font-size:14px;font-weight:600;min-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .swatch{width:24px;height:24px;border-radius:7px;border:1px solid var(--border);background:transparent;cursor:pointer;padding:0;flex:none}
+  .swatch.green{background:var(--green);border-color:transparent}
+  .swatch.yellow{background:var(--yellow);border-color:transparent}
+  .swatch.red{background:var(--red);border-color:transparent}
+  .swatch.active{outline:2px solid var(--text);outline-offset:2px}
+  .swatch.readonly{cursor:default;display:inline-block}
+  .swatch.none{background:repeating-linear-gradient(45deg,var(--border),var(--border) 3px,transparent 3px,transparent 6px)}
+
+  dialog{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:16px;padding:20px;max-width:340px;width:calc(100% - 32px);box-shadow:var(--shadow)}
+  dialog::backdrop{background:rgba(10,14,20,.55)}
+  dialog h3{margin:0 0 6px;font-size:17px}
+  dialog p{margin:0 0 12px;color:var(--muted);font-size:13px}
+  dialog input{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--soft);color:inherit;font:inherit;margin-bottom:14px}
+  .dlg-actions{display:flex;justify-content:flex-end}
+  .primary{background:var(--accent);border:1px solid transparent;color:#fff;padding:8px 18px;border-radius:10px;cursor:pointer}
+
+  .setup{margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 16px;font-size:14px}
+  .setup summary{cursor:pointer;color:var(--muted);padding:4px 0}
+  .setup ol{color:var(--muted);line-height:1.6}
+  .setup code.inline{background:var(--soft);border:1px solid var(--border);border-radius:5px;padding:1px 5px;font-size:12.5px}
+  .setup pre{overflow:auto;background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12.5px;line-height:1.5}
+  .warn{color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <div class="brand">
+      <h1>Календар дня</h1>
+      <div class="sub">2 комірки на день · зелений / жовтий / червоний · спільна синхронізація</div>
+    </div>
+    <div class="topbar-right">
+      <div class="status"><span id="statusDot" class="dot"></span><span id="statusText" aria-live="polite"></span></div>
+      <button id="userBtn" class="ghost">👤 <span id="userName">…</span></button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <section class="card">
+      <div class="month-nav">
+        <h2 id="monthLabel"></h2>
+        <div class="nav-group">
+          <button id="todayBtn" class="navbtn today-btn">Сьогодні</button>
+          <button id="prevBtn" class="navbtn" aria-label="Попередній місяць">‹</button>
+          <button id="nextBtn" class="navbtn" aria-label="Наступний місяць">›</button>
+        </div>
+      </div>
+      <div class="weekdays">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Нд</div>
+      </div>
+      <div id="daysGrid" class="days"></div>
+      <div class="legend">
+        <span class="item"><i class="i green"></i>Зелений</span>
+        <span class="item"><i class="i yellow"></i>Жовтий</span>
+        <span class="item"><i class="i red"></i>Червоний</span>
+        <span class="hint">Натисніть на колір ще раз, щоб прибрати позначку</span>
+      </div>
+    </section>
+
+    <section class="card day-card">
+      <h2 id="dayTitle"></h2>
+      <p class="daysub">Дві комірки на день — ваша та іншого користувача. Натисніть на колір, щоб позначити</p>
+      <div id="cells" class="cells"></div>
+    </section>
+
+  </main>
+
+  <details class="setup">
+    <summary>Як підключити Supabase (синхронізація між двома користувачами)</summary>
+    <ol>
+      <li>Створіть проєкт на <b>supabase.com</b> (або відкрийте вже існуючий).</li>
+      <li>У <b>SQL Editor</b> виконайте SQL з блоку нижче — він створить таблицю <code class="inline">marks</code>, політики доступу та увімкне Realtime.</li>
+      <li>У <b>Project Settings → API</b> скопіюйте <b>Project URL</b> і <b>anon public</b> ключ.</li>
+      <li>Вставте їх у два значення вгорі цього файлу: <code class="inline">SUPABASE_URL</code> і <code class="inline">SUPABASE_ANON_KEY</code> (знайдіть блок «НАЛАШТУВАННЯ SUPABASE», Ctrl+F).</li>
+      <li>Відкрийте файл у браузері. Другий користувач відкриває цей самий файл (або копію), вводить своє ім'я — і обидва бачите позначки одне одного миттєво.</li>
+    </ol>
+    <pre><code>-- Таблиця позначок: один рядок = колір одного дня для одного користувача
+-- Якщо створювали таблицю за старою версією (з періодами) — спочатку видаліть її:
+drop table if exists public.marks;
+
+create table if not exists public.marks (
+  date       date not null,                              -- день, напр. 2026-10-20
+  user_name  text not null check (char_length(user_name) between 1 and 40),
+  color      text not null check (color in ('green','yellow','red')),
+  updated_at timestamptz not null default now(),
+  primary key (date, user_name)
+);
+
+-- Доступ: анонімний ключ, політики відкриті (достатньо для двох довірених людей)
+alter table public.marks enable row level security;
+
+create policy "public read"   on public.marks for select to anon using (true);
+create policy "public insert" on public.marks for insert to anon with check (true);
+create policy "public update" on public.marks for update to anon using (true) with check (true);
+create policy "public delete" on public.marks for delete to anon using (true);
+
+-- Realtime: миттєві оновлення в обох браузерах
+alter publication supabase_realtime add table public.marks;
+alter table public.marks replica identity full;</code></pre>
+    <p class="warn">Ключ <code class="inline">anon</code> і політики «все дозволено» — це нормально лише для приватного календаря на кілька людей: кожен, хто має ключ і цей файл, може читати та змінювати позначки. Не зберігайте в такій таблиці конфіденційні дані.</p>
+  </details>
+
+</div>
+
+<dialog id="nameDlg">
+  <form id="nameForm" method="dialog">
+    <h3>Як вас звати?</h3>
+    <p>Це ім'я бачитиме інший користувач. Воно зберігається лише у вашому браузері.</p>
+    <input id="nameInput" maxlength="24" placeholder="Наприклад, Олена" autocomplete="off" />
+    <div class="dlg-actions"><button id="nameOk" class="primary" value="ok">Готово</button></div>
+  </form>
+</dialog>
+
+<script type="module">
+/* ================== НАЛАШТУВАННЯ SUPABASE ==================
+   Вставте дані свого проєкту Supabase (Project Settings → API).
+   Поки тут залишаються заглушки, календар працює в локальному режимі
+   (позначки зберігаються в localStorage цього браузера). */
+const SUPABASE_URL = 'https://uadwcpjywlpsasojbksh.supabase.co';        // напр. https://abcdefghij.supabase.co
+const SUPABASE_ANON_KEY = 'sb_publishable_Eb0-uUadkHayhZMWDY1L5Q_pylwpTwT';
+
+const COLORS = ['green', 'yellow', 'red'];
+const COLOR_LABEL = { green: 'Зелений', yellow: 'Жовтий', red: 'Червоний' };
+
+const $ = (s) => document.querySelector(s);
+
+const state = {
+  me: localStorage.getItem('pc_user') || '',
+  view: { y: new Date().getFullYear(), m: new Date().getMonth() },
+  selected: toISO(new Date()),
+  marks: new Map(),          // "date|user" -> color
+  users: [],                 // відомі користувачі, першим — я
+  localRows: [],             // для локального режиму
+  sb: null,
+};
+
+function toISO(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function fromISO(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function markKey(date, user) { return `${date}|${user}`; }
+function monthRange() {
+  const first = new Date(state.view.y, state.view.m, 1);
+  const last = new Date(state.view.y, state.view.m + 1, 0);
+  return [toISO(first), toISO(last)];
+}
+function sortUsers(names) {
+  const set = new Set(names);
+  if (state.me) set.add(state.me);
+  return [...set].sort((a, b) =>
+    a === state.me ? -1 : b === state.me ? 1 : a.localeCompare(b, 'uk'));
+}
+
+/* ---------------- статус з'єднання ---------------- */
+function setStatus(kind) {
+  const labels = {
+    ok: 'Синхронізовано',
+    connecting: 'Підключення…',
+    error: 'Помилка синхронізації',
+    local: 'Локальний режим (без Supabase)',
+  };
+  $('#statusDot').className = 'dot ' + kind;
+  $('#statusText').textContent = labels[kind] || '';
+}
+
+/* ---------------- ініціалізація ---------------- */
+function normalizeLocalRows() {
+  // Прибирає дублікати та сліди старої версії (з полем period) з localStorage
+  const raw = JSON.parse(localStorage.getItem('pc_marks') || '[]');
+  const byKey = new Map();
+  for (const r of raw) {
+    if (r && r.date && r.user_name && r.color) byKey.set(`${r.date}|${r.user_name}`, { date: r.date, user_name: r.user_name, color: r.color });
+  }
+  state.localRows = [...byKey.values()];
+  localStorage.setItem('pc_marks', JSON.stringify(state.localRows));
+}
+
+async function initSupabase() {
+  normalizeLocalRows();
+  if (!/^https?:\/\//.test(SUPABASE_URL)) { setStatus('local'); return; }
+  try {
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    state.sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {
+    console.warn('Не вдалося завантажити Supabase SDK — працюємо локально', e);
+    state.sb = null;
+  }
+  setStatus(state.sb ? 'connecting' : 'local');
+}
+
+function subscribeRealtime() {
+  state.sb.channel('marks-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'marks' }, () => scheduleReload())
+    .subscribe((status) => {
+      setStatus(status === 'SUBSCRIBED' ? 'ok'
+        : (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') ? 'error' : 'connecting');
+    });
+}
+
+let reloadTimer = null;
+function scheduleReload() {
+  clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => loadMonth(), 350);
+}
+
+/* ---------------- дані ---------------- */
+async function loadMonth() {
+  const [from, to] = monthRange();
+  let rows = [];
+  if (state.sb) {
+    const { data, error } = await state.sb.from('marks')
+      .select('date,user_name,color').gte('date', from).lte('date', to);
+    if (error) {
+      console.error(error);
+      setStatus('error');
+      return;
+    }
+    rows = data || [];
+  } else {
+    rows = state.localRows.filter((r) => r.date >= from && r.date <= to);
+  }
+  state.marks.clear();
+  for (const r of rows) state.marks.set(markKey(r.date, r.user_name), r.color);
+  state.users = sortUsers([...new Set(rows.map((r) => r.user_name))]);
+  render();
+}
+
+async function refreshUsers() {
+  let names = [];
+  if (state.sb) {
+    const { data, error } = await state.sb.from('marks').select('user_name').limit(10000);
+    if (!error) names = (data || []).map((r) => r.user_name);
+  } else {
+    names = state.localRows.map((r) => r.user_name);
+  }
+  state.users = sortUsers(names);
+}
+
+async function setMark(date, color) {
+  const k = markKey(date, state.me);
+  if (color) state.marks.set(k, color); else state.marks.delete(k);
+  render();
+  if (state.sb) {
+    let error;
+    if (color) {
+      ({ error } = await state.sb.from('marks').upsert(
+        { date, user_name: state.me, color, updated_at: new Date().toISOString() },
+        { onConflict: 'date,user_name' }));
+    } else {
+      ({ error } = await state.sb.from('marks').delete().match({ date, user_name: state.me }));
+    }
+    if (error) { setStatus('error'); alert('Не вдалося зберегти позначку:\n' + error.message); }
+    else setStatus('ok');
+  } else {
+    const i = state.localRows.findIndex((r) => r.date === date && r.user_name === state.me);
+    if (color) {
+      const row = { date, user_name: state.me, color };
+      if (i >= 0) state.localRows[i] = row; else state.localRows.push(row);
+    } else if (i >= 0) {
+      state.localRows.splice(i, 1);
+    }
+    localStorage.setItem('pc_marks', JSON.stringify(state.localRows));
+  }
+}
+
+/* ---------------- рендер ---------------- */
+function render() {
+  renderCalendar();
+  renderDay();
+}
+
+function renderCalendar() {
+  const { y, m } = state.view;
+  $('#monthLabel').textContent = new Intl.DateTimeFormat('uk-UA', { month: 'long', year: 'numeric' })
+    .format(new Date(y, m, 1));
+
+  const grid = $('#daysGrid');
+  grid.innerHTML = '';
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const offset = (new Date(y, m, 1).getDay() + 6) % 7; // тиждень з понеділка
+  const totalCells = Math.ceil((offset + daysInMonth) / 7) * 7;
+  const todayISO = toISO(new Date());
+
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(y, m, i - offset + 1);
+    const iso = toISO(d);
+    const inMonth = d.getMonth() === m;
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'day' + (inMonth ? '' : ' pad')
+      + (iso === todayISO ? ' today' : '')
+      + (iso === state.selected ? ' selected' : '');
+    cell.setAttribute('aria-label', new Intl.DateTimeFormat('uk-UA', { dateStyle: 'full' }).format(d));
+
+    const num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = d.getDate();
+    cell.appendChild(num);
+
+    const miniGrid = document.createElement('div');
+    miniGrid.className = 'mini-grid';
+    const shown = state.users.length ? state.users : [state.me];
+    for (let i = 0; i < Math.max(2, shown.length); i++) {
+      miniGrid.appendChild(miniCell(i < shown.length ? shown[i] : '', iso));
+    }
+    cell.appendChild(miniGrid);
+
+    cell.onclick = () => selectDay(iso);
+    grid.appendChild(cell);
+  }
+}
+
+function miniCell(user, iso) {
+  const el = document.createElement('div');
+  el.className = 'mini';
+  if (!user) return el; // запасна порожня комірка, коли користувачів поки один
+  const color = state.marks.get(markKey(iso, user));
+  if (color) {
+    const s = document.createElement('span');
+    s.className = color;
+    el.appendChild(s);
+  }
+  el.title = `${user}: ${color ? COLOR_LABEL[color] : 'не позначено'}`;
+  return el;
+}
+
+function renderDay() {
+  const d = fromISO(state.selected);
+  $('#dayTitle').textContent = new Intl.DateTimeFormat('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' }).format(d);
+
+  const box = $('#cells');
+  box.innerHTML = '';
+  box.appendChild(mySlot());
+  for (const u of state.users.filter((x) => x !== state.me)) box.appendChild(otherSlot(u));
+}
+
+function mySlot() {
+  const cur = state.marks.get(markKey(state.selected, state.me));
+  const wrap = document.createElement('div');
+  wrap.className = 'user-slot';
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = 'Ви';
+  wrap.appendChild(name);
+  for (const c of COLORS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `swatch ${c}` + (cur === c ? ' active' : '');
+    b.title = `${COLOR_LABEL[c]}${cur === c ? ' (натисніть, щоб прибрати)' : ''}`;
+    b.setAttribute('aria-label', b.title);
+    b.onclick = () => setMark(state.selected, cur === c ? null : c);
+    wrap.appendChild(b);
+  }
+  return wrap;
+}
+
+function otherSlot(u) {
+  const cur = state.marks.get(markKey(state.selected, u));
+  const wrap = document.createElement('div');
+  wrap.className = 'user-slot';
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = u;
+  name.title = u;
+  wrap.appendChild(name);
+  const s = document.createElement('span');
+  s.className = 'swatch readonly ' + (cur || 'none');
+  s.title = cur ? COLOR_LABEL[cur] : 'ще не позначив(-ла)';
+  wrap.appendChild(s);
+  return wrap;
+}
+
+/* ---------------- навігація ---------------- */
+function selectDay(iso) {
+  state.selected = iso;
+  const d = fromISO(iso);
+  if (d.getFullYear() !== state.view.y || d.getMonth() !== state.view.m) {
+    state.view = { y: d.getFullYear(), m: d.getMonth() };
+    loadMonth();
+  } else {
+    render();
+  }
+}
+function shiftMonth(delta) {
+  const dt = new Date(state.view.y, state.view.m + delta, 1);
+  state.view = { y: dt.getFullYear(), m: dt.getMonth() };
+  loadMonth();
+}
+function moveDay(delta) {
+  const d = fromISO(state.selected);
+  d.setDate(d.getDate() + delta);
+  selectDay(toISO(d));
+}
+
+/* ---------------- ім'я користувача ---------------- */
+function openNameDialog() {
+  const dlg = $('#nameDlg');
+  $('#nameInput').value = state.me || '';
+  dlg.showModal();
+  setTimeout(() => $('#nameInput').focus(), 30);
+}
+$('#nameForm').addEventListener('submit', (e) => {
+  const v = $('#nameInput').value.trim();
+  if (!v) { e.preventDefault(); return; }
+  state.me = v;
+  localStorage.setItem('pc_user', v);
+  $('#userName').textContent = v;
+});
+$('#nameDlg').addEventListener('close', async () => {
+  if (!state.me) { openNameDialog(); return; } // ім'я обов'язкове
+  state.users = sortUsers(state.users);
+  await refreshUsers();
+  render();
+});
+
+/* ---------------- запуск ---------------- */
+$('#prevBtn').onclick = () => shiftMonth(-1);
+$('#nextBtn').onclick = () => shiftMonth(1);
+$('#todayBtn').onclick = () => {
+  const now = new Date();
+  state.view = { y: now.getFullYear(), m: now.getMonth() };
+  state.selected = toISO(now);
+  loadMonth();
+};
+$('#userBtn').onclick = () => openNameDialog();
+document.addEventListener('keydown', (e) => {
+  if (document.querySelector('dialog[open]')) return;
+  if (/^(input|textarea)$/i.test(e.target.tagName)) return;
+  if (e.key === 'ArrowLeft') moveDay(-1);
+  if (e.key === 'ArrowRight') moveDay(1);
+});
+
+(async function boot() {
+  await initSupabase();
+  if (!state.me) { openNameDialog(); return; }
+  $('#userName').textContent = state.me;
+  await loadMonth();
+  await refreshUsers();
+  render();
+  if (state.sb) subscribeRealtime();
+  setInterval(() => { if (state.sb) loadMonth(); }, 60000); // резервне оновлення
+})();
+</script>
+</body>
+</html>
